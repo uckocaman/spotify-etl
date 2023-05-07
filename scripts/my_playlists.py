@@ -33,7 +33,6 @@ def check_if_valid_data(df: pd.DataFrame, primary_key = 'None') -> bool:
     if df.isnull().values.any():
         logging.exception("Null values found")
         raise
-
     return True
 
 def getPlaylists(sp, user_id):
