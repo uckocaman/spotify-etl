@@ -129,8 +129,8 @@ def extract(time_interval):
 def load2bq(data):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
 
-    project_id = "telegrambot-295900"
-    dataset_id = "dwh"
+    project_id = ""
+    dataset_id = ""
     table_id = "my_played_tracks"
 
     client = bigquery.Client(project=project_id)

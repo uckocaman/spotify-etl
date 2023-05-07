@@ -196,10 +196,10 @@ if __name__ == "__main__":
         
     if check_if_valid_data(playlists_df,"playlist_id"):
         logging.info("Data valid, proceeding to load stage")
-        load2bq(playlists_df, project_id = 'telegrambot-295900', dataset_id = 'dwh', table_id = 'my_playlists', write_disposition = 'WRITE_TRUNCATE')
+        load2bq(playlists_df, project_id = '', dataset_id = '', table_id = 'my_playlists', write_disposition = 'WRITE_TRUNCATE')
         
         playlist_tracks_df = get_playlist_tracks(id, playlist_id_list)
         
         if check_if_valid_data(playlist_tracks_df):
             logging.info("Data valid, proceeding to load stage")
-            load2bq(playlist_tracks_df, project_id = 'telegrambot-295900', dataset_id = 'dwh', table_id = 'my_playlists_tracks', write_disposition = 'WRITE_TRUNCATE')
+            load2bq(playlist_tracks_df, project_id = '', dataset_id = '', table_id = 'my_playlists_tracks', write_disposition = 'WRITE_TRUNCATE')
