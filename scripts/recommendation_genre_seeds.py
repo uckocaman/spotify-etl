@@ -1,13 +1,23 @@
 import spotipy
 import pandas as pd
-from google.cloud import bigquery
 import os
+import logging
+from load2bq import load2bq
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s :: %(levelname)s :: %(message)s",
+    filename=f"logs/{os.path.basename(__file__).split('.')[0]}.log",
+)
+logging.info("The job of getting the playlists started.")
 
 sp = spotipy.Spotify(
-    auth_manager=spotipy.oauth2.SpotifyOAuth(client_id = "", 
-    client_secret = "", 
-    redirect_uri = "http://localhost:7777/callback", 
-    scope="user-library-read")
+    auth_manager=spotipy.oauth2.SpotifyOAuth(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+        redirect_uri="http://localhost:7777/callback",
+        scope="user-library-read",
+    )
 )
 
 def check_if_valid_data(df: pd.DataFrame) -> bool:
@@ -21,29 +31,9 @@ def check_if_valid_data(df: pd.DataFrame) -> bool:
         raise Exception("Null values found")
     return True
 
-def get_genres():
+def get_genres() -> pd.DataFrame:
     genres = sp.recommendation_genre_seeds()
     return pd.DataFrame(genres, columns = list(genres.keys()))
-
-def load2bq(data,table_id):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"]=""
-
-    project_id = ''
-    dataset_id = ''
-    table_id = table_id
-
-    client = bigquery.Client(project = project_id)
-    dataset = client.dataset(dataset_id)
-    table = dataset.table(table_id)
-
-    job_config = bigquery.LoadJobConfig(
-        autodetect=False,
-        source_format=bigquery.SourceFormat.CSV,
-        write_disposition = 'WRITE_TRUNCATE'
-    )
-
-    job = client.load_table_from_dataframe(data, table, job_config=job_config)
-    print(f"Loaded {len(data.index)} rows to {table}")
     
 def main():
     genres = get_genres()    
