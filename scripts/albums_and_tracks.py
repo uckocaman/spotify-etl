@@ -1,28 +1,35 @@
 import spotipy
 import pandas as pd
-from google.cloud import bigquery
 import os
 import logging
+from load2bq import load2bq
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s :: %(levelname)s :: %(message)s', filename='logs/albums_and_tracks.log')
-
-logging.info('The job of getting the albums and tracks data started.')
-
-sp = spotipy.Spotify(
-    auth_manager=spotipy.oauth2.SpotifyOAuth(client_id = "", 
-    client_secret = "", 
-    redirect_uri = "http://localhost:7777/callback", 
-    scope="user-library-read")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s :: %(levelname)s :: %(message)s",
+    filename=f"logs/{os.path.basename(__file__).split('.')[0]}.log",
 )
 
-def check_if_valid_data(df: pd.DataFrame, primary_key = 'None') -> bool:
+logging.info("The job of getting the albums and tracks data started.")
+
+sp = spotipy.Spotify(
+    auth_manager=spotipy.oauth2.SpotifyOAuth(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+        redirect_uri="http://localhost:7777/callback",
+        scope="user-library-read",
+    )
+)
+
+
+def check_if_valid_data(df: pd.DataFrame, primary_key="None") -> bool:
     # Check if dataframe is empty
     if df.empty:
         logging.info("No songs downloaded. Finishing execution")
         return False
 
     # Primary Key Check
-    if primary_key != 'None' and not pd.Series(df[primary_key]).is_unique:
+    if primary_key != "None" and not pd.Series(df[primary_key]).is_unique:
         logging.exception("Primary Key check is violated")
         raise
 
@@ -33,140 +40,80 @@ def check_if_valid_data(df: pd.DataFrame, primary_key = 'None') -> bool:
 
     return True
 
-def get_albums():
-    albums = sp.current_user_saved_albums(limit=50, offset=1)
 
-    album_id = []
-    album_name = []
-    album_label= []
-    album_popularity= []
-    album_release_date = []
-    album_total_tracks = []
-    album_url = []
-    album_type = []
-    artist_id = []
-    artist_name= []
-    added_at= []
-   
-    for album in albums["items"]:
-        album_id.append(album["album"]["id"])
-        album_name.append(album["album"]["name"])
-        album_label.append(album["album"]["label"])
-        album_popularity.append(album["album"]["popularity"])
-        album_release_date.append(album["album"]["release_date"])
-        album_total_tracks.append(album["album"]["total_tracks"])
-        album_url.append(album["album"]["external_urls"]["spotify"])
-        album_type.append(album["album"]["type"])
-        artist_id.append(album["album"]["artists"][0]["id"])
-        artist_name.append(album["album"]["artists"][0]["name"])
-        added_at.append(album["added_at"])
+def get_albums() -> pd.DataFrame:
+    saved_albums = sp.current_user_saved_albums(limit=50, offset=1)
+    albums = []
 
-    album_dict = {
-        "album_id" : album_id,
-        "album_name": album_name,
-        "album_label" : album_label,
-        "album_popularity" : album_popularity,
-        "album_release_date" : album_release_date,
-        "album_total_tracks" : album_total_tracks,
-        "album_url" : album_url,
-        "album_type" : album_type,
-        "artist_id" : artist_id,
-        "artist_name" : artist_name,
-        "aded_at" : added_at
-    }
-    album_df = pd.DataFrame(album_dict, columns = list(album_dict.keys()))
-    
-    return album_df, album_id
+    for album in saved_albums["items"]:
+        album_row = {
+            "album_id": album["album"]["id"],
+            "album_name": album["album"]["name"],
+            "album_label": album["album"]["label"],
+            "album_popularity": album["album"]["popularity"],
+            "album_release_date": album["album"]["release_date"],
+            "album_total_tracks": album["album"]["total_tracks"],
+            "album_url": album["album"]["external_urls"]["spotify"],
+            "album_type": album["album"]["type"],
+            "artist_id": album["album"]["artists"][0]["id"],
+            "artist_name": album["album"]["artists"][0]["name"],
+            "aded_at": album["added_at"],
+        }
+        albums.append(album_row)
 
-def get_albums_tracks(album_id_list):
+    return pd.DataFrame(albums)
 
-    album_id = []
-    track_id = []
-    track_name = []
-    item_type = []
-    track_duration = []
-    explicit = []
-    is_local = []
-    track_number = []
-    artist_id = []
-    artist_name = []
+
+def get_albums_tracks(album_id_list: list) -> pd.DataFrame:
+    album_tracks = []
 
     for i in album_id_list:
-        albums_tracks = sp.album_tracks(i,limit=50, offset=1)
-        album_items = albums_tracks["items"]
-
-        for item in album_items:
-#            print(len(item["artists"]))
-            album_id.append(i)
-            track_id.append(item["id"])
-            track_name.append(item["name"])
-            item_type.append(item["type"])
-            track_duration.append(item["duration_ms"])
-            explicit.append(item["explicit"])
-            is_local.append(item["is_local"])
-            track_number.append(item["track_number"])
-            artist_id.append(item["artists"][0]["id"])
-            artist_name.append(item["artists"][0]["name"])
-
-        album_track_dict = {
-            "album_id" : album_id,
-            "track_id": track_id,
-            "track_name" : track_name,
-            "item_type" : item_type,
-            "track_duration" : track_duration,
-            "explicit" : explicit,
-            "is_local" : is_local,
-            "track_number" : track_number,
-            "artist_id" : artist_id,
-            "artist_name" : artist_name,
-        }
-    return pd.DataFrame(album_track_dict, columns = list(album_track_dict.keys()))
+        albums_tracks = sp.album_tracks(i, limit=50, offset=1)
+        for item in albums_tracks["items"]:
+            album_track_row = {
+                "album_id": i,
+                "track_id": item["id"],
+                "track_name": item["name"],
+                "item_type": item["type"],
+                "track_duration": item["duration_ms"],
+                "explicit": item["explicit"],
+                "is_local": item["is_local"],
+                "track_number": item["track_number"],
+                "artist_id": item["artists"][0]["id"],
+                "artist_name": item["artists"][0]["name"],
+            }
+            album_tracks.append(album_track_row)
+    return pd.DataFrame(album_tracks)
 
 
-def load2bq(data,table_id):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"]=""
-
-    project_id = ''
-    dataset_id = ''
-    table_id = table_id
-
-    client = bigquery.Client(project = project_id)
-    dataset = client.dataset(dataset_id)
-    table = dataset.table(table_id)
-
-    job_config = bigquery.LoadJobConfig(
-        autodetect=False,
-        source_format=bigquery.SourceFormat.CSV,
-        write_disposition = 'WRITE_TRUNCATE'
-    )
-
-    try:
-        client.load_table_from_dataframe(data, table, job_config=job_config)
-        logging.info(f"Loaded {len(data.index)} rows to {table}")
-    except:
-        logging.exception("Something went wrong while loading data to BigQuery")
-        raise
-    
 def main():
     try:
-        albums, album_id = get_albums()    
-        logging.info("Albums data successfully extracted from API, proceeding to validation stage")
+        albums = get_albums()
+        album_ids = albums.album_id.tolist()
+        logging.info(
+            "Albums data successfully extracted from API, proceeding to validation stage"
+        )
     except:
         logging.exception("Something went wrong while extracting albums data from API")
         raise
 
-    if check_if_valid_data(albums,'album_id'):
+    if check_if_valid_data(albums, "album_id"):
         logging.info("Data valid for my albums table, proceeding to load stage")
         load2bq(albums,'my_albums')
-        
+
         try:
-            album_tracks = get_albums_tracks(album_id)
-            logging.info("Album tracks data successfully extracted from API, proceeding to validation stage")
+            album_tracks = get_albums_tracks(album_ids)
+            logging.info(
+                "Album tracks data successfully extracted from API, proceeding to validation stage"
+            )
         except:
-            logging.exception("Something went wrong while extracting album tracks data from API")
+            logging.exception(
+                "Something went wrong while extracting album tracks data from API"
+            )
             raise
 
         if check_if_valid_data(album_tracks):
             logging.info("Data valid for album tracks table, proceeding to Load stage")
             load2bq(album_tracks,'album_tracks')
-# main()
+
+main()

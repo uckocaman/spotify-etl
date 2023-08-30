@@ -1,31 +1,34 @@
 import spotipy
 import pandas as pd
-from google.cloud import bigquery
 import os
 import logging
+from load2bq import load2bq
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s :: %(levelname)s :: %(message)s', filename='logs/my_playlists.log')
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s :: %(levelname)s :: %(message)s",
+    filename=f"logs/{os.path.basename(__file__).split('.')[0]}.log",
+)
+logging.info("The job of getting the playlists started.")
 
-logging.info('The job of getting the playlists started.')
-
-def connection():
-    sp = spotipy.Spotify(
-        auth_manager=spotipy.oauth2.SpotifyOAuth(client_id = "", 
-        client_secret = "", 
-        redirect_uri = "http://localhost:7777/callback", 
-        scope="user-library-read")
+sp = spotipy.Spotify(
+    auth_manager=spotipy.oauth2.SpotifyOAuth(
+        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
+        redirect_uri="http://localhost:7777/callback",
+        scope="user-library-read",
     )
-    my_info = sp.me()
-    return sp, my_info["id"]
+)
 
-def check_if_valid_data(df: pd.DataFrame, primary_key = 'None') -> bool:
+
+def check_if_valid_data(df: pd.DataFrame, primary_key="None") -> bool:
     # Check if dataframe is empty
     if df.empty:
         logging.info("No songs downloaded. Finishing execution")
         return False
 
     # Primary Key Check
-    if primary_key != 'None' and not pd.Series(df[primary_key]).is_unique:
+    if primary_key != "None" and not pd.Series(df[primary_key]).is_unique:
         logging.exception("Primary Key check is violated")
         raise
 
@@ -35,171 +38,95 @@ def check_if_valid_data(df: pd.DataFrame, primary_key = 'None') -> bool:
         raise
     return True
 
-def getPlaylists(sp, user_id):
+
+def getPlaylists(sp: spotipy, user_id: str) -> pd.DataFrame:
     playlists = sp.user_playlists(user_id)
-    playlist_id = []
-    playlist_name = []
-    playlist_url = []
-    playlist_owner = []
-    playlist_owner_url = []
-    playlist_owner_id = []
-    playlist_owner_type = []
-    is_public = []
-    total_track = []
-    playlist_type = []
+    playlist_list = []
 
     while playlists:
         for playlist in playlists["items"]:
-            playlist_id.append(playlist["id"])
-            playlist_name.append(playlist["name"])
-            playlist_url.append(playlist['external_urls']['spotify'])
-            playlist_owner.append(playlist['owner']['display_name'])
-            playlist_owner_url.append(playlist['owner']['external_urls']['spotify'])
-            playlist_owner_id.append(playlist['owner']['id'])
-            playlist_owner_type.append(playlist['owner']['type'])
-            is_public.append(playlist['public'])
-            total_track.append(playlist['tracks']['total'])
-            playlist_type.append(playlist['type'])
+            playlists_row = {
+                "playlist_id": playlist["id"],
+                "playlist_name": playlist["name"],
+                "playlist_url": playlist["external_urls"]["spotify"],
+                "playlist_owner_id": playlist["owner"]["display_name"],
+                "playlist_owner": playlist["owner"]["external_urls"]["spotify"],
+                "playlist_owner_url": playlist["owner"]["id"],
+                "playlist_owner_type": playlist["owner"]["type"],
+                "is_public": playlist["public"],
+                "total_track": playlist["tracks"]["total"],
+                "playlist_type": playlist["type"],
+            }
+            playlist_list.append(playlists_row)
 
         playlists = sp.next(playlists) if playlists["next"] else None
-    playlists_dict = {
-        "playlist_id" : playlist_id,
-        "playlist_name": playlist_name,
-        "playlist_url" : playlist_url,
-        "playlist_owner_id" : playlist_owner_id,
-        "playlist_owner" : playlist_owner,
-        "playlist_owner_url" : playlist_owner_url,
-        "playlist_owner_type" : playlist_owner_type,
-        "is_public" : is_public,
-        "total_track" : total_track,
-        "playlist_type" : playlist_type,
-    }
+    playlists_df = pd.DataFrame(playlist_list)
 
-    playlists_df = pd.DataFrame(playlists_dict, columns = ["playlist_id","playlist_name", "playlist_url","playlist_owner_id","playlist_owner","playlist_owner_url","playlist_owner_type",
-                                                            "is_public","total_track","playlist_type"])
-
-    return playlists_dict, playlists_df, playlist_id
+    return playlists_df
 
 
-def get_playlist_tracks(username, playlist_id_list):
-    playlist_id = []
-    track_id = []
-    track_name = []
-    artist_id = []
-    artist_name = []
-    artist_type = []
-    album_id = []
-    album_name = []
-    album_type = []
-    album_release_date = []
-    album_total_tracks = []
-    track_type = []
-    duraiton = []
-    added_at = []
-    added_by = []
-    is_explicit = []
+def get_playlist_tracks(username: str, playlist_id_list: list) -> pd.DataFrame:
+    playlist_tracks_list = []
 
     for i in playlist_id_list:
         results = sp.user_playlist_tracks(username, i)
         playlist_items = results["items"]
 
         for item in playlist_items:
-            playlist_id.append(i)
-            track_id.append(item["track"]["id"])
-            track_name.append(item["track"]["name"])
-            artist_id.append(item["track"]["artists"][0]["id"])
-            artist_name.append(item["track"]["artists"][0]["name"])
-            artist_type.append(item["track"]["artists"][0]["type"])
-            album_id.append(item["track"]["album"]["id"])
-            album_name.append(item["track"]["album"]["name"])
-            album_type.append(item["track"]["album"]["album_type"])
-            album_release_date.append(item["track"]["album"]["release_date"])
-            album_total_tracks.append(item["track"]["album"]["total_tracks"])
-            track_type.append(item["track"]["type"])
-            duraiton.append(item["track"]["duration_ms"])
-            added_at.append(item["added_at"])
-            added_by.append(item["added_by"]["id"])
-            is_explicit.append(item["track"]["explicit"])
-
-        playlist_tracks_dict = {
-            "playlist_id" : playlist_id,
-            "track_id": track_id,
-            "track_name" : track_name,
-            "artist_id" : artist_id,
-            "artist_name" : artist_name,
-            "artist_type" : artist_type,
-            "album_id" : album_id,
-            "album_name" : album_name,
-            "album_type" : album_type,
-            "album_release_date" : album_release_date,
-            "album_total_tracks" : album_total_tracks,
-            "track_type" : track_type,
-            "duraiton" : duraiton,
-            "added_at" : added_at,
-            "added_by" :added_by,
-            "is_explicit" : is_explicit
-        }
+            playlist_tracks_row = {
+                "playlist_id": i,
+                "track_id": item["track"]["id"],
+                "track_name": item["track"]["name"],
+                "artist_id": item["track"]["artists"][0]["id"],
+                "artist_name": item["track"]["artists"][0]["name"],
+                "artist_type": item["track"]["artists"][0]["type"],
+                "album_id": item["track"]["album"]["id"],
+                "album_name": item["track"]["album"]["name"],
+                "album_type": item["track"]["album"]["album_type"],
+                "album_release_date": item["track"]["album"]["release_date"],
+                "album_total_tracks": item["track"]["album"]["total_tracks"],
+                "track_type": item["track"]["type"],
+                "duraiton": item["track"]["duration_ms"],
+                "added_at": item["added_at"],
+                "added_by": item["added_by"]["id"],
+                "is_explicit": item["track"]["explicit"],
+            }
+            playlist_tracks_list.append(playlist_tracks_row)
 
         while results["next"]:
             results = sp.next(results)
             playlist_items.append(results["items"])
 
-    return pd.DataFrame(
-        playlist_tracks_dict,
-        columns=[
-            "playlist_id",
-            "track_id",
-            "track_name",
-            "artist_id",
-            "artist_name",
-            "artist_type",
-            "album_id",
-            "album_name",
-            "album_type",
-            "album_release_date",
-            "album_total_tracks",
-            "track_type",
-            "duraiton",
-            "added_at",
-            "added_by",
-            "is_explicit",
-        ],
-    )
+    return pd.DataFrame(playlist_tracks_list)
 
-def load2bq(data,project_id,dataset_id,table_id,write_disposition):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"]=""
-
-    client = bigquery.Client(project = project_id)
-    dataset = client.dataset(dataset_id)
-    table = dataset.table(table_id)
-
-    job_config = bigquery.LoadJobConfig(
-        autodetect=False,
-        source_format=bigquery.SourceFormat.CSV,
-        write_disposition = write_disposition
-    )
-    try:
-        client.load_table_from_dataframe(data, table, job_config=job_config)
-        logging.info(f"Loaded {len(data.index)} rows to {table}")
-    except:
-        logging.exception("Something went wrong while loading data to BigQuery")
-        raise
 
 if __name__ == "__main__":
-    sp, id = connection()
     try:
-        playlists_dict, playlists_df, playlist_id_list = getPlaylists(sp,id)
-        logging.info("Playlists data successfully extracted from API, proceeding to validation stage")
+        playlists_df = getPlaylists(sp, sp.me()["id"])
+        logging.info(
+            "Playlists data successfully extracted from API, proceeding to validation stage"
+        )
     except:
-        logging.exception("Something went wrong while extracting playlists data from API")
+        logging.exception(
+            "Something went wrong while extracting playlists data from API"
+        )
         raise
-        
-    if check_if_valid_data(playlists_df,"playlist_id"):
+
+    if check_if_valid_data(playlists_df, "playlist_id"):
         logging.info("Data valid, proceeding to load stage")
-        load2bq(playlists_df, project_id = '', dataset_id = '', table_id = 'my_playlists', write_disposition = 'WRITE_TRUNCATE')
-        
-        playlist_tracks_df = get_playlist_tracks(id, playlist_id_list)
-        
+        load2bq(playlists_df, table_id="my_playlists", load_type="WRITE_TRUNCATE")
+
+        playlist_tracks_df = get_playlist_tracks(
+            sp.me()["id"], playlists_df["playlist_id"].to_list()
+        )
+        playlist_tracks_df["album_release_date"] = playlist_tracks_df[
+            "album_release_date"
+        ].fillna("1900-01-01")
+
         if check_if_valid_data(playlist_tracks_df):
             logging.info("Data valid, proceeding to load stage")
-            load2bq(playlist_tracks_df, project_id = '', dataset_id = '', table_id = 'my_playlists_tracks', write_disposition = 'WRITE_TRUNCATE')
+            load2bq(
+                playlist_tracks_df,
+                table_id="my_playlists_tracks",
+                load_type="WRITE_TRUNCATE",
+            )
