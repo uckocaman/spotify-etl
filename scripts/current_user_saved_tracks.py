@@ -3,7 +3,9 @@ import pandas as pd
 import os
 import logging
 from load2bq import load2bq
+from dotenv import load_dotenv
 
+load_dotenv()
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s :: %(levelname)s :: %(message)s",

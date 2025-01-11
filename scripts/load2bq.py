@@ -1,12 +1,13 @@
 from google.cloud import bigquery
 import pandas as pd
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def load2bq(data: pd.DataFrame, table_id: str, load_type: str = "WRITE_TRUNCATE"):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = ""
-
-    project_id = ""
-    dataset_id = ""
+    project_id = os.environ["GCP_PROJECT_ID"]
+    dataset_id = os.environ["dataset_id"]
     table_id = table_id
 
     client = bigquery.Client(project=project_id)

@@ -1,0 +1,10 @@
+name: spotify-etl
+channels:
+  - defaults
+dependencies:
+  - python==3.13.1
+  - conda-forge::spotipy
+  - pandas
+  - conda-forge::python-dotenv
+  - conda-forge::google-cloud-bigquery
+  - conda-forge::google-auth-oauthlib

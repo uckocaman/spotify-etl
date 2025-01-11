@@ -4,7 +4,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import logging
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
