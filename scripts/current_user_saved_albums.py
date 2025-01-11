@@ -4,6 +4,7 @@ import os
 import logging
 from load2bq import load2bq
 from dotenv import load_dotenv
+from validations import check_if_valid_data
 
 load_dotenv()
 logging.basicConfig(
@@ -22,25 +23,6 @@ sp = spotipy.Spotify(
         scope="user-library-read",
     )
 )
-
-
-def check_if_valid_data(df: pd.DataFrame, primary_key="None") -> bool:
-    # Check if dataframe is empty
-    if df.empty:
-        logging.info("No songs downloaded. Finishing execution")
-        return False
-
-    # Primary Key Check
-    if primary_key != "None" and not pd.Series(df[primary_key]).is_unique:
-        logging.exception("Primary Key check is violated")
-        raise
-
-    # Check for nulls
-    if df.isnull().values.any():
-        logging.exception("Null values found")
-        raise
-
-    return True
 
 
 def get_albums() -> pd.DataFrame:
@@ -101,7 +83,7 @@ def main():
 
     if check_if_valid_data(albums, "album_id"):
         logging.info("Data valid for my albums table, proceeding to load stage")
-        load2bq(albums,'my_albums')
+        load2bq(albums, "my_albums")
 
         try:
             album_tracks = get_albums_tracks(album_ids)
@@ -116,6 +98,7 @@ def main():
 
         if check_if_valid_data(album_tracks):
             logging.info("Data valid for album tracks table, proceeding to Load stage")
-            load2bq(album_tracks,'album_tracks')
+            load2bq(album_tracks, "album_tracks")
+
 
 main()

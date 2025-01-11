@@ -4,6 +4,7 @@ import os
 import logging
 from load2bq import load2bq
 from dotenv import load_dotenv
+from validations import check_if_valid_data
 
 load_dotenv()
 logging.basicConfig(
@@ -23,29 +24,10 @@ sp = spotipy.Spotify(
 )
 
 
-def check_if_valid_data(df: pd.DataFrame, key1, key2) -> bool:
-    # Check if dataframe is empty
-    if df.empty:
-        logging.info("No songs downloaded. Finishing execution")
-        return False
-
-    # Primary Key Check
-    if not df.set_index([key1, key2]).index.is_unique:
-        logging.exception("Primary Key check is violated")
-        raise
-
-    # Check for nulls
-    if df.isnull().values.any():
-        logging.exception("Null values found")
-        raise
-
-    return True
-
-
 def get_top_tracks() -> pd.DataFrame:
     ranges = ["short_term", "medium_term", "long_term"]
     top_tracks_list = []
-    
+
     for range in ranges:
         top_tracks = sp.current_user_top_tracks(limit=50, offset=0, time_range=range)
         for track in top_tracks["items"]:

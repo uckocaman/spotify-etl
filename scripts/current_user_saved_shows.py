@@ -4,6 +4,7 @@ import os
 import logging
 from load2bq import load2bq
 from dotenv import load_dotenv
+from validations import check_if_valid_data
 
 load_dotenv()
 logging.basicConfig(
@@ -22,25 +23,6 @@ sp = spotipy.Spotify(
         scope="user-library-read",
     )
 )
-
-
-def check_if_valid_data(df: pd.DataFrame, primary_key="None") -> bool:
-    # Check if dataframe is empty
-    if df.empty:
-        logging.info("No songs downloaded. Finishing execution")
-        return False
-
-    # Primary Key Check
-    if primary_key != "None" and not pd.Series(df[primary_key]).is_unique:
-        logging.exception("Primary Key check is violated")
-        raise
-
-    # Check for nulls
-    if df.isnull().values.any():
-        logging.exception("Null values found")
-        raise
-
-    return True
 
 
 def get_saved_shows(offset=0):
@@ -78,12 +60,14 @@ def main():
         logging.exception("Something went wrong while extracting data from API")
         raise
 
-    while len(saved_shows) % 50 == 0 and len(saved_shows) != total_shows: 
+    while len(saved_shows) % 50 == 0 and len(saved_shows) != total_shows:
         logging.info(
             f"The number of saved show is greater than {len(saved_shows)}. The offset increased to {len(saved_shows)+1}"
         )
         try:
-            saved_shows_new_offset, total_shows = get_saved_shows(offset=len(saved_shows) + 1)
+            saved_shows_new_offset, total_shows = get_saved_shows(
+                offset=len(saved_shows) + 1
+            )
             saved_shows = pd.concat([saved_shows, saved_shows_new_offset])
             logging.info(
                 "All data successfully extracted from API, proceeding to validation stage"
