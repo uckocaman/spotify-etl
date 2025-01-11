@@ -1,3 +1,4 @@
+# Description: This script contains functions to validate the data and timestamps.
 import pandas as pd
 import logging
 import pytz

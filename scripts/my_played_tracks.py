@@ -1,4 +1,4 @@
-import spotipy
+# Description: This script gets the last played tracks from the Spotify API and loads them into a BigQuery table.
 import datetime
 import pandas as pd
 import os
@@ -6,6 +6,7 @@ import logging
 from load2bq import load2bq
 from dotenv import load_dotenv
 from validations import check_if_valid_data, check_if_valid_interval
+from connect_to_spotify import connect2spotify
 
 load_dotenv()
 logging.basicConfig(
@@ -16,17 +17,10 @@ logging.basicConfig(
 
 logging.info("The job of getting the played tracks started.")
 
-sp = spotipy.Spotify(
-    auth_manager=spotipy.oauth2.SpotifyOAuth(
-        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
-        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
-        redirect_uri="http://localhost:7777/callback",
-        scope="user-read-recently-played",
-    )
-)
+sp = connect2spotify("user-read-recently-played")
 
 
-def extract(time_interval) -> pd.DataFrame:
+def extract(time_interval: int) -> pd.DataFrame:
     results = sp.current_user_recently_played(limit=50, after=time_interval)
     played_tracks_list = []
 

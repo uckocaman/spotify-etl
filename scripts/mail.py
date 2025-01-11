@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+# Description: This script is used to send email using SMTP server.
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -16,7 +17,7 @@ logging.basicConfig(
 logging.info("Email send job started.")
 
 
-def send_email(subject, body, sender_email="", to=""):
+def send_email(subject: str, body: str, sender_email: str = "", to: str = ""):
     msg = MIMEMultipart()
 
     msg["From"] = sender_email

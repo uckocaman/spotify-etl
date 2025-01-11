@@ -1,3 +1,4 @@
+# Description: Load data to BigQuery
 from google.cloud import bigquery
 import pandas as pd
 import os
