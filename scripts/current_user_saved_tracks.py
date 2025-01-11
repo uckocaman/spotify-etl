@@ -1,10 +1,11 @@
-import spotipy
+# Description: This script gets the saved tracks of the user and loads them into BigQuery.
 import pandas as pd
 import os
 import logging
 from load2bq import load2bq
 from dotenv import load_dotenv
 from validations import check_if_valid_data
+from connect_to_spotify import connect2spotify
 
 load_dotenv()
 logging.basicConfig(
@@ -14,17 +15,10 @@ logging.basicConfig(
 )
 logging.info("The job of getting the saved tracks started.")
 
-sp = spotipy.Spotify(
-    auth_manager=spotipy.oauth2.SpotifyOAuth(
-        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
-        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
-        redirect_uri="http://localhost:7777/callback",
-        scope="user-library-read",
-    )
-)
+sp = connect2spotify("user-library-read")
 
 
-def get_saved_tracks(offset=0):
+def get_saved_tracks(offset: int = 0):
     saved_tracks = sp.current_user_saved_tracks(limit=50, offset=offset)
     total_track = saved_tracks["total"]
     saved_tracks_list = []

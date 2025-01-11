@@ -1,3 +1,4 @@
+# Description: This script gets the saved tracks from the user's Spotify account and loads them into BigQuery.
 import spotipy
 import pandas as pd
 import os
@@ -5,6 +6,7 @@ import logging
 from load2bq import load2bq
 from dotenv import load_dotenv
 from validations import check_if_valid_data
+from connect_to_spotify import connect2spotify
 
 load_dotenv()
 logging.basicConfig(
@@ -14,14 +16,7 @@ logging.basicConfig(
 )
 logging.info("The job of getting the playlists started.")
 
-sp = spotipy.Spotify(
-    auth_manager=spotipy.oauth2.SpotifyOAuth(
-        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
-        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET"),
-        redirect_uri="http://localhost:7777/callback",
-        scope="user-library-read",
-    )
-)
+sp = connect2spotify("user-library-read")
 
 
 def getPlaylists(sp: spotipy, user_id: str) -> pd.DataFrame:
