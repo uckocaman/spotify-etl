@@ -20,7 +20,7 @@ logging.info("The job of getting the played tracks started.")
 sp = connect2spotify("user-read-recently-played")
 
 
-def extract(time_interval: int) -> pd.DataFrame:
+def get_played_tracks(time_interval: int) -> pd.DataFrame:
     results = sp.current_user_recently_played(limit=50, after=time_interval)
     played_tracks_list = []
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     unix_timestamp = int(lower_interval.timestamp()) * 1000
 
     try:
-        my_played_tracks = extract(unix_timestamp)
+        my_played_tracks = get_played_tracks(unix_timestamp)
         logging.info(
             "Data successfully extracted from API, proceeding to validation stage"
         )

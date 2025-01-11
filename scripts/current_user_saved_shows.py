@@ -72,8 +72,7 @@ def main():
 
     if check_if_valid_data(saved_shows, "show_id"):
         logging.info("Data valid for shows table, proceed to Load stage")
-        # load2bq(saved_shows, "saved_shows")
-        print(saved_shows)
+        load2bq(saved_shows, "saved_shows")
 
 
 main()
