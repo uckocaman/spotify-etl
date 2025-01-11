@@ -19,7 +19,7 @@ logging.info("The job of getting the playlists started.")
 sp = connect2spotify("user-library-read")
 
 
-def getPlaylists(sp: spotipy, user_id: str) -> pd.DataFrame:
+def get_playlists(sp: spotipy, user_id: str) -> pd.DataFrame:
     playlists = sp.user_playlists(user_id)
     playlist_list = []
 
@@ -82,7 +82,7 @@ def get_playlist_tracks(username: str, playlist_id_list: list) -> pd.DataFrame:
 
 if __name__ == "__main__":
     try:
-        playlists_df = getPlaylists(sp, sp.me()["id"])
+        playlists_df = get_playlists(sp, sp.me()["id"])
         logging.info(
             "Playlists data successfully extracted from API, proceeding to validation stage"
         )
